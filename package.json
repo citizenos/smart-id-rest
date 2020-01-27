@@ -1,0 +1,28 @@
+{
+  "name": "smart-id-rest",
+  "version": "1.0.0",
+  "description": "Simple Smart-ID REST client",
+  "main": "index.js",
+  "scripts": {
+    "test": "NODE_ENV=test FORCE_DB_SYNC=1 NODE_TLS_REJECT_UNAUTHORIZED=0 ./node_modules/.bin/mocha --expose-gc --async-only --check-leaks --trace-deprecation --reporter spec --no-exit  --no-timeout --recursive --ui tdd test/"
+  },
+  "keywords": [
+    "smart-id"
+  ],
+  "author": "Ilmar Türk",
+  "license": "ISC",
+  "dependencies": {
+    "asn1js": "2.0.26",
+    "bluebird": "3.7.2",
+    "elliptic": "6.5.2",
+    "log4js": "6.1.0",
+    "node-forge": "0.9.1",
+    "pkijs": "2.1.84",
+    "rsautl": "git+https://github.com/citizenos/rsautl#1f6ef42c77aee80d8c114de8260c24cf6bc7005e",
+    "utf8": "3.0.0"
+  },
+  "devDependencies": {
+    "chai": "4.2.0",
+    "mocha": "7.0.1"
+  }
+}
