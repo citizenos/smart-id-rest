@@ -6,6 +6,7 @@
 function SmartId () {
     const that = this;
     const logger = require('log4js').getLogger();
+    logger.level = process.env;
     const crypto = require('crypto');
     const Promise = require('bluebird');
     const encoder = require('utf8');
@@ -116,6 +117,7 @@ function SmartId () {
         _replyingPartyName = options.replyingPartyName;
         _authorizeToken = options.authorizeToken;
         _issuers = options.issuers;
+        logger.level = process.env || options.loggerLevel;
 
         if (options.hostname) {
             const hostData = options.hostname.split(':');
@@ -298,7 +300,26 @@ function SmartId () {
             }, {padding: null, encoding: null});
         });
     };
+    
+    const _isEquivalent = function (a, b) {
+        var aProps = Object.getOwnPropertyNames(a);
+        var bProps = Object.getOwnPropertyNames(b);
 
+        if (aProps.length != bProps.length) {
+            return false;
+        }
+
+        for (var i = 0; i < aProps.length; i++) {
+            var propName = aProps[i];
+
+            if (a[propName] !== b[propName]) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+    
     const _validateIssuer = function (cert) {
         return new Promise(function (resolve, reject) {
             let IssuerData = {};
@@ -309,7 +330,7 @@ function SmartId () {
 
             let isValid = false;
             _issuers.forEach(function (issuer) {
-                if (JSON.stringify(issuer) === JSON.stringify(IssuerData)) {
+                if (_isEquivalent(issuer, IssuerData)) {
                     isValid = true;
                 }
             });
