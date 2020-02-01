@@ -171,9 +171,10 @@ function SmartId () {
         });
     };
 
-    const _getVerificationCode = function (sessionHash) {
+    const _getVerificationCode = function (sessionHash, format) {
+        format = format || 'hex';
         const enchash = crypto.createHash('sha256');
-        enchash.update(Buffer.from(sessionHash, 'hex'));
+        enchash.update(Buffer.from(sessionHash, format));
         const buf = enchash.digest();
 
         const twoRightmostBytes = buf.slice(-2);
@@ -560,7 +561,7 @@ function SmartId () {
                             return reject(data);
                         }
 
-                        const verficationCode = _getVerificationCode(sessionHash);
+                        const verficationCode = _getVerificationCode(sessionHash, 'base64');
 
                         return resolve({
                             sessionId: data.sessionID,
