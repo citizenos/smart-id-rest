@@ -180,7 +180,7 @@ suite('Auth', function () {
                         .then(function (authResult) {
                             replyed++;
                             if (authResult.state === 'COMPLETE') {
-                                assert.equal(authResult.state, '');
+                                assert.equal(authResult.state, 'COMPLETE');
                                 assert.equal(authResult.result.endResult, 'TIMEOUT');
                                 clearInterval(poller);
 

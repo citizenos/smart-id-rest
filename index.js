@@ -147,15 +147,16 @@ function SmartId () {
                 result.on('data', function (chunk) {
                     data += chunk;
                 });
-
                 result.on('end', function () {
                     try {
+                        logger.info(data);
                         data = JSON.parse(data);
                         return resolve({
                             status: result.statusCode,
                             data: data
                         });
                     } catch (e) {
+                        logger.error(e);
                         return reject(e);
                     }
                 });
@@ -227,7 +228,7 @@ function SmartId () {
                     } else if (result.data.code && result.data.message) {
                         let e = new Error(result.data.message);
                         e.code = result.data.code;
-
+                        logger.error(e);
                         return reject(e);
                     }
 
@@ -301,7 +302,7 @@ function SmartId () {
             }, {padding: null, encoding: null});
         });
     };
-    
+
     const _isEquivalent = function (a, b) {
         var aProps = Object.getOwnPropertyNames(a);
         var bProps = Object.getOwnPropertyNames(b);
@@ -320,7 +321,7 @@ function SmartId () {
 
         return true;
     };
-    
+
     const _validateIssuer = function (cert) {
         return new Promise(function (resolve, reject) {
             let IssuerData = {};
@@ -402,7 +403,10 @@ function SmartId () {
             method: 'GET',
             port: _port,
             requestCert: true,
-            requestOCSP: true
+            requestOCSP: true,
+            headers: {
+                'Authorization': 'Bearer ' + _authorizeToken
+            }
         };
 
         return new Promise(function (resolve) {
@@ -415,7 +419,7 @@ function SmartId () {
 
     const _getUserCertificate = function (pid, countryCode) {
         countryCode = countryCode || 'EE';
-        const path = '/smart-id-rp/v1/certificatechoice/pno/:countryCode/:pid'.replace(':countryCode', countryCode).replace(':pid', pid);
+        const path = _apiPath + '/certificatechoice/pno/:countryCode/:pid'.replace(':countryCode', countryCode).replace(':pid', pid);
 
         let params = {
             relyingPartyUUID: _replyingPartyUUID,
@@ -524,7 +528,7 @@ function SmartId () {
     const _signature = function (pid, countryCode, sessionHash) {
         countryCode = countryCode || 'EE'; //defaults to Estonia
         const hashType = 'sha256';
-        const path = '/smart-id-rp/v1/signature/pno/:countryCode/:pid';
+        const path = _apiPath + '/signature/pno/:countryCode/:pid';
         let params = {
             relyingPartyUUID: _replyingPartyUUID,
             relyingPartyName: _replyingPartyName,
