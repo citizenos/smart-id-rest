@@ -235,4 +235,42 @@ suite('Sign', function () {
                 done();
             });
     });
+
+    test('Fail - there was a timeout, i.e. end user did not confirm or refuse the operation within given timeframe.', function (done) {
+        const countryCode = 'EE';
+        const nationalIdentityNumber = '10101010027';
+
+        const hash = crypto.createHash('SHA256');
+        hash.update('Sign this text');
+        const finalHash = hash.digest('hex');
+
+        smartId
+            .signature(nationalIdentityNumber, countryCode, Buffer.from(finalHash, 'hex').toString('base64'))
+            .then(function (result) {
+                assert.match(result.challengeID, /[0-9]{4}/);
+
+                let called = 0;
+                let replyed = 0;
+                const poller = setInterval(function () {
+                    if (called === replyed) {
+                        called++;
+                        smartId.statusSign(result.sessionId, 10000)
+                            .then(function (authResult) {
+                                replyed++;
+                                if (authResult.state === 'COMPLETE') {
+                                    assert.equal(authResult.state, 'COMPLETE');
+                                    assert.equal(authResult.result.endResult, 'TIMEOUT');
+                                    clearInterval(poller);
+
+                                    done();
+                                } else {
+                                    assert.equal(authResult.state, 'RUNNING');
+                                }
+
+                            }).catch(done);
+                    }
+
+                }, 5000);
+            });
+    });
 });

@@ -371,8 +371,8 @@ function SmartId () {
             });
     };
 
-    const _statusAuth = function (sessionId, sessionHash) {
-        return _getSessionStatusData(sessionId)
+    const _statusAuth = function (sessionId, sessionHash, timeoutMs) {
+        return _getSessionStatusData(sessionId, timeoutMs)
             .then(function (result) {
                 const data = result.data;
 
@@ -395,8 +395,11 @@ function SmartId () {
             });
     };
 
-    const _getSessionStatusData = function (sessionId) {
-        const path = _apiPath + '/session/:sessionId'.replace(':sessionId', sessionId);
+    const _getSessionStatusData = function (sessionId, timeout) {
+        let path = _apiPath + '/session/:sessionId'.replace(':sessionId', sessionId);
+        if (timeout) {
+            path += '?timeoutMs=' + timeout;
+        }
         const options = {
             hostname: _hostname,
             path: path,
@@ -508,9 +511,9 @@ function SmartId () {
         });
     };
 
-    const _statusSign = function (sessionId) {
+    const _statusSign = function (sessionId, timeoutMs) {
         return new Promise (function (resolve) {
-            return _getSessionStatusData(sessionId)
+            return _getSessionStatusData(sessionId, timeoutMs)
                 .then(function (result) {
                     const data = result.data;
                     if (data.state === 'COMPLETE' && data.result === 'OK') {
