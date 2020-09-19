@@ -138,8 +138,7 @@ function SmartId () {
         return input;
     };
 
-    const _apiRequest = function (params, options) {
-
+    const _apiRequest = async function (params, options) {
         return new Promise(function (resolve, reject) {
             const request = https.request(options, function (result) {
                 let data = '';
@@ -172,7 +171,7 @@ function SmartId () {
         });
     };
 
-    const _getVerificationCode = function (sessionHash, format) {
+    const _getVerificationCode = async function (sessionHash, format) {
         format = format || 'hex';
         const enchash = crypto.createHash('sha256');
         enchash.update(Buffer.from(sessionHash, format));
@@ -187,7 +186,7 @@ function SmartId () {
         return _padLeft(positiveInteger, 4, '0');
     };
 
-    const _authenticate = function (pid, countryCode) {
+    const _authenticate = async function (pid, countryCode) {
         countryCode = countryCode || 'EE'; //defaults to Estonia
         const sessionHash = _createHash();
         const path = _apiPath + '/authentication/pno/:countryCode/:pid'.replace(':countryCode', countryCode).replace(':pid', pid);
@@ -214,32 +213,24 @@ function SmartId () {
             }
         };
 
-        return new Promise(function (resolve, reject) {
-            _apiRequest(params, options)
-                .then(function (result) {
-                    if (result.data.sessionID) {
-                        const verficationCode = _getVerificationCode(sessionHash);
+        const data = (await _apiRequest(params, options)).data;
 
-                        return resolve({
-                            sessionId: result.data.sessionID,
-                            challengeID: verficationCode,
-                            sessionHash: sessionHash
-                        });
-                    } else if (result.data.code && result.data.message) {
-                        let e = new Error(result.data.message);
-                        e.code = result.data.code;
-                        logger.error(e);
-                        return reject(e);
-                    }
+        if (data.sessionID) {
+            const verficationCode = await _getVerificationCode(sessionHash);
 
-                    return reject(result.data);
+            return {
+                sessionId: data.sessionID,
+                challengeID: verficationCode,
+                sessionHash: sessionHash
+            };
+        } else if (data.code && data.message) {
+            throw new Error(data.message);
+        }
 
-
-                });
-            });
+        return data;
     };
 
-    const _prepareCert = function (certificateString, format) {
+    const _prepareCert = async function (certificateString, format) {
         format = format || 'base64';
         if (typeof certificateString !== 'string') {
             throw new Error('Expected PEM as string')
@@ -258,49 +249,45 @@ function SmartId () {
         return cert;
     };
 
-    const _validateEC = function (cert,hash, signatureString) {
-        return new Promise (function (resolve, reject) {
-            const ec = new EC('p256');
-            const publicKeyData = {
-                x: Buffer.from(cert.subjectPublicKeyInfo.parsedKey.x).toString('hex'),
-                y: Buffer.from(cert.subjectPublicKeyInfo.parsedKey.y).toString('hex')
-            };
-            const key = ec.keyFromPublic(publicKeyData, 'hex');
+    const _validateEC = async function (cert,hash, signatureString) {
+        const ec = new EC('p256');
+        const publicKeyData = {
+            x: Buffer.from(cert.subjectPublicKeyInfo.parsedKey.x).toString('hex'),
+            y: Buffer.from(cert.subjectPublicKeyInfo.parsedKey.y).toString('hex')
+        };
+        const key = ec.keyFromPublic(publicKeyData, 'hex');
 
-            // Splits to 2 halfs
-            const m = Buffer.from(signatureString, 'base64').toString('hex').match(/([a-f\d]{64})/gi);
+        // Splits to 2 halfs
+        const m = Buffer.from(signatureString, 'base64').toString('hex').match(/([a-f\d]{64})/gi);
 
-            const signature = {
-                r: m[0],
-                s: m[1]
-            };
+        const signature = {
+            r: m[0],
+            s: m[1]
+        };
 
-            if(key.verify(hash, signature)) {
-                return resolve(true);
-            } else {
-                return reject(new ValidationError("Invalid signature"));
-            }
-        });
+        if(key.verify(hash, signature)) {
+            return true;
+        } else {
+            throw new ValidationError("Invalid signature");
+        }
     };
 
-    const _validateRSA = function (cert, hash, signatureString) {
-        return new Promise (function (resolve, reject) {
-            const publicKey = forge.pki.publicKeyToPem(cert.publicKey);
-            const sha256Prefix = [0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20];
-            const items = [Buffer.from(sha256Prefix), Buffer.from(hash, 'hex')];
+    const _validateRSA = async function (cert, hash, signatureString) {
+        const publicKey = forge.pki.publicKeyToPem(cert.publicKey);
+        const sha256Prefix = [0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20];
+        const items = [Buffer.from(sha256Prefix), Buffer.from(hash, 'hex')];
 
-            return rsautl.verify(signatureString, publicKey, function (err, verified) {
-                if (err) logger.error('ERROR', err);
-                const verificationResult = Buffer.from(verified).toString();
-                const prefixedHash = Buffer.concat(items).toString();
-                if(verificationResult === prefixedHash) {
-                    return resolve(true);
-                } else {
-                    return reject(new ValidationError("Invalid signature"));
-                }
+        return rsautl.verify(signatureString, publicKey, function (err, verified) {
+            if (err) logger.error('ERROR', err);
+            const verificationResult = Buffer.from(verified).toString();
+            const prefixedHash = Buffer.concat(items).toString();
+            if(verificationResult === prefixedHash) {
+                return true;
+            } else {
+                throw new ValidationError("Invalid signature");
+            }
 
-            }, {padding: null, encoding: null});
-        });
+        }, {padding: null, encoding: null});
     };
 
     const _isEquivalent = function (a, b) {
@@ -322,80 +309,69 @@ function SmartId () {
         return true;
     };
 
-    const _validateIssuer = function (cert) {
-        return new Promise(function (resolve, reject) {
-            let IssuerData = {};
-            cert.issuer.typesAndValues.map(function (item) {
-                IssuerData[OID[item.type].short] = item.value.valueBlock.value;
-            });
-
-
-            let isValid = false;
-            _issuers.forEach(function (issuer) {
-                if (_isEquivalent(issuer, IssuerData)) {
-                    isValid = true;
-                }
-            });
-
-            if(!isValid) {
-                logger.error('Invalid issuer: ' + IssuerData);
-                return reject(new ValidationError('Invalid certificate issuer'));
-            }
-
-            return resolve();
+    const _validateIssuer = async function (cert) {
+        let IssuerData = {};
+        cert.issuer.typesAndValues.map(function (item) {
+            IssuerData[OID[item.type].short] = item.value.valueBlock.value;
         });
+
+
+        let isValid = false;
+        _issuers.forEach(function (issuer) {
+            if (_isEquivalent(issuer, IssuerData)) {
+                isValid = true;
+            }
+        });
+
+        if(!isValid) {
+            logger.error('Invalid issuer: ' + IssuerData);
+            throw new ValidationError('Invalid certificate issuer');
+        }
+
+        return isValid;
     };
 
-    const _validateCert = function (cert) {
+    const _validateCert = async function (cert) {
         const now = new Date();
-
         if (now <= new Date(cert.notBefore.value) ||  now >= new Date(cert.notAfter.value)) {
-            return Promise.reject(new ValidationError('Certificate not active'));
+            throw new ValidationError('Certificate not active');
         }
 
         return _validateIssuer(cert);
     };
 
-    const _validateAuthorization = function (authResponse, sessionHash) {
-        const cert = _prepareCert(authResponse.cert.value, 'base64');
+    const _validateAuthorization = async function (authResponse, sessionHash) {
+        const cert = await _prepareCert(authResponse.cert.value, 'base64');
+        await _validateCert(cert);
+        if (cert.subjectPublicKeyInfo.parsedKey.x && cert.subjectPublicKeyInfo.parsedKey.y) {
+            return _validateEC(cert, sessionHash, authResponse.signature.value);
+        }
 
-        return _validateCert(cert)
-            .then(function () {
-                if (cert.subjectPublicKeyInfo.parsedKey.x && cert.subjectPublicKeyInfo.parsedKey.y) {
-                    return _validateEC(cert, sessionHash, authResponse.signature.value);
-                }
+        const certPem = forge.pki.certificateFromPem('-----BEGIN CERTIFICATE-----\n' +authResponse.cert.value + '\n-----END CERTIFICATE-----');
 
-                const certPem = forge.pki.certificateFromPem('-----BEGIN CERTIFICATE-----\n' +authResponse.cert.value + '\n-----END CERTIFICATE-----');
+        return _validateRSA(certPem, sessionHash, authResponse.signature.value);
 
-                return _validateRSA(certPem, sessionHash, authResponse.signature.value);
-            });
     };
 
-    const _statusAuth = function (sessionId, sessionHash, timeoutMs) {
-        return _getSessionStatusData(sessionId, timeoutMs)
-            .then(function (result) {
-                const data = result.data;
+    const _statusAuth = async function (sessionId, sessionHash, timeoutMs) {
+        const data = (await _getSessionStatusData(sessionId, timeoutMs)).data;
 
-                if (data.state === 'RUNNING') {
-                    return data;
-                }
+        if (data.state === 'RUNNING') {
+            return data;
+        }
 
-                if (data.result.endResult === 'OK') {
-                    return _validateAuthorization(result.data, sessionHash)
-                        .then(function () {
-                            return _getCertUserData(data.cert.value, 'base64')
-                                .then(function (personalInfo) {
-                                    data.personalInfo = personalInfo;
-                                    return data;
-                                });
-                        });
-                } else {
-                    return data;
-                }
-            });
+        if (data.result.endResult === 'OK') {
+            await _validateAuthorization(data, sessionHash);
+            const personalInfo = await _getCertUserData(data.cert.value, 'base64');
+            data.personalInfo = personalInfo;
+
+            return data;
+        } else {
+            return data;
+        }
     };
 
-    const _getSessionStatusData = function (sessionId, timeout) {
+    const _getSessionStatusData = async function (sessionId, timeout) {
         let path = _apiPath + '/session/:sessionId'.replace(':sessionId', sessionId);
         if (timeout) {
             path += '?timeoutMs=' + timeout;
@@ -412,15 +388,10 @@ function SmartId () {
             }
         };
 
-        return new Promise(function (resolve) {
-            return _apiRequest(null, options)
-                .then(function (result) {
-                    return resolve(result);
-                });
-        })
+        return _apiRequest(null, options);
     };
 
-    const _getUserCertificate = function (pid, countryCode) {
+    const _getUserCertificate = async function (pid, countryCode) {
         countryCode = countryCode || 'EE';
         const path = _apiPath + '/certificatechoice/pno/:countryCode/:pid'.replace(':countryCode', countryCode).replace(':pid', pid);
 
@@ -443,50 +414,21 @@ function SmartId () {
             }
         };
 
-        return new Promise(function (resolve, reject) {
-            let data = '';
-            const request = https.request(options, function (result) {
-                result.setEncoding('utf8');
-                result.on('data', function (chunk) {
-                        data += chunk;
-                });
+        const data = (await _apiRequest(params, options)).data;
+        if (data.sessionID) {
+            const sessionData = await _getSessionStatusData(data.sessionID);
+            if (sessionData.data && sessionData.data.cert) {
+                await _validateCert(await _prepareCert(sessionData.data.cert.value, 'base64'));
+                return sessionData.data.cert.value;
+            }
 
-                result.on('end', function () {
-                    data = JSON.parse(data);
-                    if (data.sessionID) {
-                        return _getSessionStatusData(data.sessionID)
-                            .then(function (sessionData) {
-                                if (sessionData.data && sessionData.data.cert) {
-                                    return _validateCert(_prepareCert(sessionData.data.cert.value, 'base64'))
-                                        .then(function () {
-                                            return resolve(sessionData.data.cert.value);
-                                        });
-                                    }
+            return sessionData;
+        }
 
-                                    return resolve(sessionData);
-                            });
-                    }
-
-                    return resolve(data);
-                })
-                result.on('error', function (e) {
-                    reject(e);
-                });
-            });
-
-            // write data to request body
-
-            request.write(params);
-            request.end();
-            request.on('error', function (e) {
-                logger.error('problem with request: ', e.message);
-
-                return reject(e);
-            });
-        });
+        return data;
     };
 
-    const getCertValue = function (key, cert) {
+    const getCertValue = async function (key, cert) {
         let res = {};
         cert[key].typesAndValues.forEach(function (typeAndValue) {
             const type = typeAndValue.type;
@@ -498,37 +440,30 @@ function SmartId () {
         return res;
     };
 
-    const _getCertUserData = function (certificate, format) {
-        const cert = _prepareCert(certificate, format);
-        const subject = getCertValue('subject', cert);
+    const _getCertUserData = async function (certificate, format) {
+        const cert = await _prepareCert(certificate, format);
+        const subject = await getCertValue('subject', cert);
         const pid = subject.CommonName.split(',').filter(function (item) {return item !== subject.GivenName && item !== subject.SurName})[0];
 
-        return Promise.resolve({
+        return {
             firstName: subject.GivenName,
             lastName: subject.SurName,
             pid,
             country: subject.Country
-        });
+        };
     };
 
-    const _statusSign = function (sessionId, timeoutMs) {
-        return new Promise (function (resolve) {
-            return _getSessionStatusData(sessionId, timeoutMs)
-                .then(function (result) {
-                    const data = result.data;
-                    if (data.state === 'COMPLETE' && data.result === 'OK') {
-                        return _validateCert(_prepareCert(data.cert.value, 'base64'))
-                                .then(function () {
-                                    return resolve(data);
-                                });
-                    }
-
-                    return resolve(data);
-                });
-        });
+    const _statusSign = async function (sessionId, timeoutMs) {
+        const data = (await _getSessionStatusData(sessionId, timeoutMs)).data;
+        if (data.state === 'COMPLETE' && data.result === 'OK') {
+            await _validateCert(await _prepareCert(data.cert.value, 'base64'));
+            return data;
+        } else {
+            return data;
+        }
     };
 
-    const _signature = function (pid, countryCode, sessionHash) {
+    const _signature = async function (pid, countryCode, sessionHash) {
         countryCode = countryCode || 'EE'; //defaults to Estonia
         const hashType = 'sha256';
         const path = _apiPath + '/signature/pno/:countryCode/:pid';
@@ -553,45 +488,19 @@ function SmartId () {
             }
         };
 
-        return new Promise(function (resolve, reject) {
-            const request = https.request(options, function (result) {
-                let data = '';
-                result.setEncoding('utf8');
-                result.on('data', function (chunk) {
-                    data += chunk;
-                });
+        const data = (await _apiRequest(params, options)).data;
+        if (!data.sessionID) {
+            return data;
+        }
 
-                result.on('end', function () {
-                    try {
-                        data = JSON.parse(data);
-                        if (!data.sessionID) {
-                            return reject(data);
-                        }
+        const verficationCode = await _getVerificationCode(sessionHash, 'base64');
 
-                        const verficationCode = _getVerificationCode(sessionHash, 'base64');
+        return {
+            sessionId: data.sessionID,
+            challengeID: verficationCode,
+            sessionHash,
 
-                        return resolve({
-                            sessionId: data.sessionID,
-                            challengeID: verficationCode,
-                            sessionHash,
-
-                        });
-                    } catch (e) {
-                        return reject(e);
-                    }
-                });
-            });
-
-            // write data to request body
-
-            request.write(params);
-            request.end();
-            request.on('error', function (e) {
-                logger.error('problem with request: ', e.message);
-
-                return reject(e);
-            });
-        });
+        };
     };
 
     return {
