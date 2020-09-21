@@ -1,6 +1,6 @@
 {
   "name": "smart-id-rest",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Simple Smart-ID REST client",
   "main": "index.js",
   "scripts": {
