@@ -224,7 +224,10 @@ function SmartId () {
                 sessionHash: sessionHash
             };
         } else if (data.code && data.message) {
-            throw new Error(data.message);
+            const e = new Error(data.message);
+            e.code = data.code;
+
+            throw e;
         }
 
         return data;
