@@ -362,7 +362,6 @@ function SmartId () {
         if (data.state === 'RUNNING') {
             return data;
         }
-
         if (data.result.endResult === 'OK') {
             await _validateAuthorization(data, sessionHash);
             const personalInfo = await _getCertUserData(data.cert.value, 'base64');
@@ -426,6 +425,8 @@ function SmartId () {
             }
 
             return sessionData;
+        } else if (data.message){
+            throw new Error(data.message);
         }
 
         return data;
@@ -492,8 +493,8 @@ function SmartId () {
         };
 
         const data = (await _apiRequest(params, options)).data;
-        if (!data.sessionID) {
-            return data;
+        if (!data.sessionID && data.message) {
+            throw new Error(data.message);
         }
 
         const verficationCode = await _getVerificationCode(sessionHash, 'base64');
