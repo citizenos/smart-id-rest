@@ -2,7 +2,7 @@
 
 const testConfig = {
     hostname: "sid.demo.sk.ee",
-    apiPath: "/smart-id-rp/v1",
+    apiPath: "/smart-id-rp/v2",
     relyingPartyUUID: "00000000-0000-0000-0000-000000000000",
     replyingPartyName: "DEMO",
     issuers: [
@@ -81,7 +81,7 @@ smartId.init(testConfig);
 suite('Certificate', function () {
     test('Success', async function () {
         const countryCode = 'EE';
-        const nationalIdentityNumber = '10101010005';
+        const nationalIdentityNumber = '30303039914';
 
         const result = await smartId.getUserCertificate(nationalIdentityNumber, countryCode);
         assert.match(result, /[0-9A-B]/);
@@ -91,7 +91,7 @@ suite('Auth', function () {
     test('Success - Estonian national identity number', async function () {
         this.timeout(15000); //eslint-disable-line no-invalid-this
 
-        const nationalIdentityNumber = '10101010005';
+        const nationalIdentityNumber = '30303039914';
         const countryCode = 'EE'
 
         const result = await smartId.authenticate(nationalIdentityNumber, countryCode);
@@ -100,13 +100,13 @@ suite('Auth', function () {
         const personalInfo = {
             firstName: 'DEMO',
             lastName: 'SMART-ID',
-            pid: 'PNOEE-10101010005',
+            pid: 'PNOEE-30303039914',
             country: 'EE'
         };
 
         assert.equal(authResult.state, 'COMPLETE');
         assert.equal(authResult.result.endResult, 'OK');
-        assert.equal(authResult.result.documentNumber, 'PNOEE-10101010005-Z1B2-Q');
+        assert.equal(authResult.result.documentNumber, 'PNOEE-30303039914-5QSV-Q');
         assert.deepEqual(authResult.personalInfo, personalInfo);
         assert.deepEqual(Object.keys(authResult.signature), ['value', 'algorithm']);
         assert.deepEqual(Object.keys(authResult.cert), ['value', 'certificateLevel']);
@@ -114,7 +114,7 @@ suite('Auth', function () {
 
     test('Fail - Invalid country code', async function () {
         const countryCode = '00';
-        const nationalIdentityNumber = '10101010005';
+        const nationalIdentityNumber = '30303039914';
 
         try {
             await smartId.authenticate(nationalIdentityNumber, countryCode);
@@ -137,7 +137,7 @@ suite('Auth', function () {
 
     test('Fail - user refused the session', async function () {
         const countryCode = 'LV';
-        const nationalIdentityNumber = '010101-10014';
+        const nationalIdentityNumber = '030403-10016';
 
         const result = await smartId.authenticate(nationalIdentityNumber, countryCode);
         assert.match(result.challengeID, /[0-9]{4}/);
@@ -148,7 +148,7 @@ suite('Auth', function () {
 
     test('Fail - there was a timeout, i.e. end user did not confirm or refuse the operation within given timeframe.', async function () {
         const countryCode = 'EE';
-        const nationalIdentityNumber = '10101010027';
+        const nationalIdentityNumber = '30403039983';
 
         const result = await smartId.authenticate(nationalIdentityNumber, countryCode);
         assert.match(result.challengeID, /[0-9]{4}/);
@@ -189,7 +189,7 @@ suite('Sign', function () {
         this.timeout(10000); //eslint-disable-line no-invalid-this
 
         const countryCode = 'EE';
-        const nationalIdentityNumber = '10101010005';
+        const nationalIdentityNumber = '30303039914';
         const hash = crypto.createHash('SHA256');
         hash.update('Sign this text');
         const finalHash = hash.digest('hex');
@@ -231,7 +231,7 @@ suite('Sign', function () {
         this.timeout(5000); //eslint-disable-line no-invalid-this
 
         const countryCode = 'EE';
-        const nationalIdentityNumber = '10101010005';
+        const nationalIdentityNumber = '30303039914';
         try {
             await smartId.signature(nationalIdentityNumber, countryCode, '');
         } catch(e) {
@@ -241,7 +241,7 @@ suite('Sign', function () {
 
     test('Fail - there was a timeout, i.e. end user did not confirm or refuse the operation within given timeframe.', async function () {
         const countryCode = 'EE';
-        const nationalIdentityNumber = '10101010027';
+        const nationalIdentityNumber = '30403039983';
 
         const hash = crypto.createHash('SHA256');
         hash.update('Sign this text');
