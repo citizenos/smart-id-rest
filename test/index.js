@@ -2,7 +2,7 @@
 
 const testConfig = {
     hostname: "sid.demo.sk.ee",
-    apiPath: "/smart-id-rp/v2",
+    apiPath: "/smart-id-rp/v1",
     relyingPartyUUID: "00000000-0000-0000-0000-000000000000",
     replyingPartyName: "DEMO",
     issuers: [
@@ -98,8 +98,8 @@ suite('Auth', function () {
         assert.match(result.challengeID, /[0-9]{4}/);
         const authResult = await smartId.statusAuth(result.sessionId, result.sessionHash);
         const personalInfo = {
-            firstName: 'DEMO',
-            lastName: 'SMART-ID',
+            firstName: 'QUALIFIED OK1',
+            lastName: 'TESTNUMBER',
             pid: 'PNOEE-30303039914',
             country: 'EE'
         };

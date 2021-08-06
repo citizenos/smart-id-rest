@@ -8,7 +8,6 @@ function SmartId () {
     const logger = require('log4js').getLogger();
     logger.level = process.env;
     const crypto = require('crypto');
-    const Promise = require('bluebird');
     const encoder = require('utf8');
     const https = require('https');
     const Pkijs = require('pkijs');
