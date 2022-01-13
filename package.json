@@ -25,7 +25,7 @@
     "log4js": "6.3.0",
     "node-forge": "1.2.1",
     "pkijs": "2.2.1",
-    "rsautl": "git+https://github.com/citizenos/rsautl.git#1f6ef42c77aee80d8c114de8260c24cf6bc7005e",
+    "simple_rsautl": "^1.0.0",
     "utf8": "3.0.0"
   },
   "devDependencies": {

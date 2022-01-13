@@ -14,7 +14,7 @@ function SmartId () {
     const Asn1js = require('asn1js');
     const EC = require('elliptic').ec;
     const forge = require('node-forge');
-    const rsautl = require('rsautl');
+    const rsautl = require('simple_rsautl');
 
     class ValidationError extends Error {
         constructor(message) {
@@ -279,17 +279,15 @@ function SmartId () {
         const sha256Prefix = [0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20];
         const items = [Buffer.from(sha256Prefix), Buffer.from(hash, 'hex')];
 
-        return rsautl.verify(signatureString, publicKey, function (err, verified) {
-            if (err) logger.error('ERROR', err);
-            const verificationResult = Buffer.from(verified).toString();
-            const prefixedHash = Buffer.concat(items).toString();
-            if(verificationResult === prefixedHash) {
-                return true;
-            } else {
-                throw new ValidationError("Invalid signature");
-            }
-
-        }, {padding: null, encoding: null});
+        const verified = await rsautl.verify(signatureString, publicKey, {padding: null, encoding: null});
+        const verificationResult = Buffer.from(verified).toString();
+        const prefixedHash = Buffer.concat(items).toString();
+        if(verificationResult === prefixedHash) {
+            return true;
+        } else {
+            console.log('ERROR')
+            throw new ValidationError("Invalid signature");
+        }
     };
 
     const _isEquivalent = function (a, b) {
@@ -352,7 +350,6 @@ function SmartId () {
         const certPem = forge.pki.certificateFromPem('-----BEGIN CERTIFICATE-----\n' +authResponse.cert.value + '\n-----END CERTIFICATE-----');
 
         return _validateRSA(certPem, sessionHash, authResponse.signature.value);
-
     };
 
     const _statusAuth = async function (sessionId, sessionHash, timeoutMs) {
