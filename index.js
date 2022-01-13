@@ -451,7 +451,7 @@ function SmartId () {
         return {
             firstName: subject.GivenName,
             lastName: subject.SurName,
-            pid,
+            pid:  subject.DeviceSerialNumber || pid,
             country: subject.Country
         };
     };

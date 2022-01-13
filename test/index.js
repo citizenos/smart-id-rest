@@ -106,7 +106,7 @@ suite('Auth', function () {
 
         assert.equal(authResult.state, 'COMPLETE');
         assert.equal(authResult.result.endResult, 'OK');
-        assert.equal(authResult.result.documentNumber, 'PNOEE-30303039914-5QSV-Q');
+        assert.equal(authResult.result.documentNumber, 'PNOEE-30303039914-D961-Q');
         assert.deepEqual(authResult.personalInfo, personalInfo);
         assert.deepEqual(Object.keys(authResult.signature), ['value', 'algorithm']);
         assert.deepEqual(Object.keys(authResult.cert), ['value', 'certificateLevel']);
