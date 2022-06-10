@@ -32,27 +32,20 @@ smartIdClient.init({
 
 ### Authenticate
 ```javascript
-smartId
-    .authenticate(nationalIdentityNumber, countryCode)
-    .then(function (result) {
-        smartId
-            .statusAuth(result.sessionId, result.sessionHash)
-            .then(function (authResult) {
-                /*
-                authResult contains response from API, see https://github.com/SK-EID/smart-id-documentation#464-response-structure
-                */
-                smartId
-                    .getCertUserData(authResult.cert.value)
-                    .then(function (personalInfo) {
-                        /* With structure {
-                            firstName: subject.GivenName,
-                            lastName: subject.SurName,
-                            pid,
-                            country: subject.Country
-                        }*/
-                    });
-            });
-    });
+const result = await smartId.authenticate(nationalIdentityNumber, countryCode);
+const authResult = await smartId.statusAuth(result.sessionId, result.sessionHash);
+/*
+    authResult contains response from API, see https://github.com/SK-EID/smart-id-documentation#464-response-structure
+*/
+const personalInfo = await smartId.getCertUserData(authResult.cert.value);
+/* personalInfo with structure:
+    {
+        firstName: subject.GivenName,
+        lastName: subject.SurName,
+        pid,
+        country: subject.Country
+    }
+*/
 ```
 
 ### Sign
@@ -64,16 +57,11 @@ const hash = crypto.createHash('SHA256');
 hash.update('Sign this text');
 const finalHash = hash.digest('hex');
 
-smartId
-        .signature(nationalIdentityNumber, countryCode, Buffer.from(finalHash, 'hex').toString('base64'))
-        .then(function (result) {
-            smartId.statusSign(result.sessionId)
-                .then(function(signResult) {
-                    /*
-                    signResult contains response from API, see https://github.com/SK-EID/smart-id-documentation#464-response-structure
-                    */
-                });
-        })
+const result = await smartId.signature(nationalIdentityNumber, countryCode, Buffer.from(finalHash, 'hex').toString('base64'));
+const signResult = await smartId.statusSign(result.sessionId);
+/*
+    signResult contains response from API, see https://github.com/SK-EID/smart-id-documentation#464-response-structure
+*/
 ```
 
 ## Credits
